@@ -1,10 +1,10 @@
-{
-  nixpkgs,
-  microvm,
-  lib,
-  hostSystem,
-  guestSystem,
-  hostPkgs,
+{ nixpkgs
+, microvm
+, lib
+, hostSystem
+, guestSystem
+, hostPkgs
+,
 }:
 let
   isDarwinHost = lib.hasSuffix "-darwin" hostSystem;
@@ -53,6 +53,8 @@ nixpkgs.lib.nixosSystem {
           ripgrep
           fd
           curl
+          python3
+          nodejs_25
         ];
 
         systemd.services."serial-getty@ttyS0".enable = false;
