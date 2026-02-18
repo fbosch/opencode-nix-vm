@@ -2,8 +2,6 @@ set -euo pipefail
 
 opencode_bin="$1"
 
-export PATH="/run/current-system/sw/bin:$PATH"
-
 host_config="/host-config/opencode"
 host_agents="/host-config/agents"
 host_data="/host-data/opencode"
@@ -53,6 +51,15 @@ copy_if_missing() {
   fi
 }
 
+sync_from_host_if_present() {
+  local dst="$1"
+  local src="$2"
+
+  if [ -e "$src" ]; then
+    cp -fL "$src" "$dst" 2>/dev/null || true
+  fi
+}
+
 mkdir -p "$user_home/.config" "$user_home/.local/share" "$user_home/.local/state" "$user_home/.cache"
 mkdir -p "$config_dir" "$state_dir" "$cache_dir"
 
@@ -70,6 +77,8 @@ copy_if_missing "$config_dir/themes" "$host_config/themes"
 copy_if_missing "$config_dir/skills" "$host_config/skills"
 copy_if_missing "$config_dir/skills" "$host_agents/skills"
 copy_if_missing "$config_dir/agents" "$host_agents/agents"
+
+sync_from_host_if_present "$config_dir/opencode.json" "$host_config/opencode.json"
 
 if [ ! -f "$host_runtime/verbose" ]; then
   printf '\033[2J\033[H'

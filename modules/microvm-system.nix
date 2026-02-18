@@ -1,10 +1,10 @@
-{ nixpkgs
-, microvm
-, lib
-, hostSystem
-, guestSystem
-, hostPkgs
-,
+{
+  nixpkgs,
+  microvm,
+  lib,
+  hostSystem,
+  guestSystem,
+  hostPkgs,
 }:
 let
   isDarwinHost = lib.hasSuffix "-darwin" hostSystem;
@@ -20,6 +20,9 @@ nixpkgs.lib.nixosSystem {
 
         networking.hostName = "opencode-vm";
         networking.firewall.enable = false;
+        boot.tmp.useTmpfs = true;
+        boot.tmp.cleanOnBoot = true;
+        services.journald.storage = "volatile";
         zramSwap.enable = true;
         boot.consoleLogLevel = 0;
         boot.initrd.verbose = false;
@@ -43,6 +46,13 @@ nixpkgs.lib.nixosSystem {
           opencode
           bashInteractive
           git
+          nix
+          gh
+          bun
+          jq
+          ripgrep
+          fd
+          curl
         ];
 
         systemd.services."serial-getty@ttyS0".enable = false;
