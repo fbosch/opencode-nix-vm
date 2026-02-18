@@ -1,0 +1,27 @@
+include <tunables/global>
+
+profile opencode flags=(attach_disconnected,mediate_deleted) {
+  include <abstractions/base>
+  include <abstractions/nameservice>
+
+  network,
+  capability,
+
+  /nix/store/** mrix,
+  /run/current-system/sw/** mrix,
+  /run/current-system/sw/bin/** mrix,
+
+  /root/** rwk,
+  /tmp/** rwk,
+  /run/** rwk,
+  /dev/{null,tty,ptmx,random,urandom} rw,
+
+  /project/** rwk,
+  /host-data/opencode/** rwk,
+  /host-config/opencode/** r,
+  /host-config/agents/** r,
+  /run/opencode-host/** r,
+
+  /proc/** r,
+  /sys/** r,
+}

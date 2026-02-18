@@ -1,10 +1,10 @@
-{ nixpkgs
-, microvm
-, lib
-, hostSystem
-, guestSystem
-, hostPkgs
-,
+{
+  nixpkgs,
+  microvm,
+  lib,
+  hostSystem,
+  guestSystem,
+  hostPkgs,
 }:
 let
   isDarwinHost = lib.hasSuffix "-darwin" hostSystem;
@@ -36,6 +36,11 @@ nixpkgs.lib.nixosSystem {
           "systemd.show_status=false"
           "rd.systemd.show_status=false"
         ];
+        security.apparmor.enable = true;
+        security.apparmor.policies.opencode = {
+          state = "complain";
+          path = ./opencode.apparmor;
+        };
         nix.enable = true;
         nix.settings.experimental-features = [
           "nix-command"
@@ -83,6 +88,7 @@ nixpkgs.lib.nixosSystem {
             RestrictRealtime = true;
             LockPersonality = true;
             SystemCallArchitectures = "native";
+            AppArmorProfile = "opencode";
             ExecStart = "${pkgs.writeShellScript "opencode-session" ''
               exec ${pkgs.bash}/bin/bash ${./opencode-session.sh} ${pkgs.opencode}/bin/opencode
             ''}";
