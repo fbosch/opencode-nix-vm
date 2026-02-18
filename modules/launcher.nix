@@ -11,6 +11,6 @@ hostPkgs.writeShellApplication {
     openssh
   ];
   text = ''
-    exec ${hostPkgs.bash}/bin/bash ${./opencode-launcher.sh} ${hostSystem} ${guestSystem} "$@"
+    exec ${hostPkgs.bash}/bin/bash ${./opencode-launcher.sh} ${hostSystem} ${guestSystem} ${./opencode-darwin-builder.sh} "$@"
   '';
 }
