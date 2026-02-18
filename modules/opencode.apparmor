@@ -17,7 +17,25 @@ profile opencode flags=(attach_disconnected,mediate_deleted) {
   /dev/{null,tty,ptmx,random,urandom} rw,
 
   /project/** rwk,
-  /host-data/opencode/** rwk,
+  
+  # Restrict /host-data/opencode writes to specific subdirectories
+  /host-data/opencode/ r,
+  /host-data/opencode/auth.json r,
+  /host-data/opencode/bin/** rwk,
+  /host-data/opencode/cache/** rwk,
+  /host-data/opencode/config/** rwk,
+  /host-data/opencode/log/** rwk,
+  /host-data/opencode/snapshot/** rwk,
+  /host-data/opencode/state/** rwk,
+  /host-data/opencode/storage/** rwk,
+  /host-data/opencode/tool-output/** rwk,
+  # Deny writing executable scripts to root of host-data
+  deny /host-data/opencode/*.sh wl,
+  deny /host-data/opencode/*.py wl,
+  deny /host-data/opencode/*.js wl,
+  deny /host-data/opencode/*.bash wl,
+  deny /host-data/opencode/*.exe wl,
+  
   /host-config/opencode/** r,
   /host-config/agents/** r,
   /run/opencode-host/** r,

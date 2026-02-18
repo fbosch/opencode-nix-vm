@@ -38,7 +38,7 @@ nixpkgs.lib.nixosSystem {
         ];
         security.apparmor.enable = true;
         security.apparmor.policies.opencode = {
-          state = "complain";
+          state = "enforce";
           path = ./opencode.apparmor;
         };
         nix.enable = true;
