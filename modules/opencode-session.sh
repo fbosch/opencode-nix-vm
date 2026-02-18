@@ -2,10 +2,13 @@ set -euo pipefail
 
 opencode_bin="$1"
 
+export PATH="/run/current-system/sw/bin:$PATH"
+
 host_config="/host-config/opencode"
 host_agents="/host-config/agents"
 host_data="/host-data/opencode"
 host_runtime="/run/opencode-host"
+user_home="/root"
 
 config_dir="$host_data/config"
 state_dir="$host_data/state"
@@ -50,7 +53,7 @@ copy_if_missing() {
   fi
 }
 
-mkdir -p /root/.config /root/.local/share /root/.local/state /root/.cache
+mkdir -p "$user_home/.config" "$user_home/.local/share" "$user_home/.local/state" "$user_home/.cache"
 mkdir -p "$config_dir" "$state_dir" "$cache_dir"
 
 if [ ! -f "$config_dir/.seeded" ]; then
@@ -72,11 +75,11 @@ if [ ! -f "$host_runtime/verbose" ]; then
   printf '\033[2J\033[H'
 fi
 
-ensure_symlink "$config_dir" /root/.config/opencode
-ensure_symlink "$host_agents" /root/.agents
-ensure_symlink "$host_data" /root/.local/share/opencode
-ensure_symlink "$state_dir" /root/.local/state/opencode
-ensure_symlink "$cache_dir" /root/.cache/opencode
+ensure_symlink "$config_dir" "$user_home/.config/opencode"
+ensure_symlink "$host_agents" "$user_home/.agents"
+ensure_symlink "$host_data" "$user_home/.local/share/opencode"
+ensure_symlink "$state_dir" "$user_home/.local/state/opencode"
+ensure_symlink "$cache_dir" "$user_home/.cache/opencode"
 
 cd /project
 

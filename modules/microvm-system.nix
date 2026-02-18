@@ -1,10 +1,10 @@
-{
-  nixpkgs,
-  microvm,
-  lib,
-  hostSystem,
-  guestSystem,
-  hostPkgs,
+{ nixpkgs
+, microvm
+, lib
+, hostSystem
+, guestSystem
+, hostPkgs
+,
 }:
 let
   isDarwinHost = lib.hasSuffix "-darwin" hostSystem;
@@ -20,7 +20,7 @@ nixpkgs.lib.nixosSystem {
 
         networking.hostName = "opencode-vm";
         networking.firewall.enable = false;
-        zramSwap.enable = false;
+        zramSwap.enable = true;
         boot.consoleLogLevel = 0;
         boot.initrd.verbose = false;
         services.getty.greetingLine = "";
@@ -34,6 +34,16 @@ nixpkgs.lib.nixosSystem {
           "rd.systemd.show_status=false"
         ];
         nix.enable = true;
+        nix.settings.experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
+
+        environment.systemPackages = with pkgs; [
+          opencode
+          bashInteractive
+          git
+        ];
 
         systemd.services."serial-getty@ttyS0".enable = false;
 
@@ -65,12 +75,6 @@ nixpkgs.lib.nixosSystem {
             ''}";
           };
         };
-
-        environment.systemPackages = with pkgs; [
-          opencode
-          bashInteractive
-          git
-        ];
 
         microvm = {
           hypervisor = if isDarwinHost then "vfkit" else "qemu";
