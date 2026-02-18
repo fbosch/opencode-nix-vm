@@ -20,8 +20,7 @@ nixpkgs.lib.nixosSystem {
 
         networking.hostName = "opencode-vm";
         networking.firewall.enable = false;
-        zramSwap.enable = true;
-        zramSwap.memoryPercent = 50;
+        zramSwap.enable = false;
         boot.consoleLogLevel = 0;
         boot.initrd.verbose = false;
         services.getty.greetingLine = "";
