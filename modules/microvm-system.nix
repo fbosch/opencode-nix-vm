@@ -109,20 +109,27 @@ nixpkgs.lib.nixosSystem {
             printf '\033[2J\033[H'
           fi
 
-          rm -rf /root/.config/opencode
-          ln -sfn /host-data/opencode/config /root/.config/opencode
+          ensure_symlink() {
+            local src="$1"
+            local dst="$2"
 
-          rm -rf /root/.agents
-          ln -sfn /host-config/agents /root/.agents
+            if [ -L "$dst" ]; then
+              local current_target
+              current_target="$(readlink "$dst" || true)"
+              if [ "$current_target" = "$src" ]; then
+                return
+              fi
+            fi
 
-          rm -rf /root/.local/share/opencode
-          ln -sfn /host-data/opencode /root/.local/share/opencode
+            rm -rf "$dst"
+            ln -sfn "$src" "$dst"
+          }
 
-          rm -rf /root/.local/state/opencode
-          ln -sfn /host-data/opencode/state /root/.local/state/opencode
-
-          rm -rf /root/.cache/opencode
-          ln -sfn /host-data/opencode/cache /root/.cache/opencode
+          ensure_symlink /host-data/opencode/config /root/.config/opencode
+          ensure_symlink /host-config/agents /root/.agents
+          ensure_symlink /host-data/opencode /root/.local/share/opencode
+          ensure_symlink /host-data/opencode/state /root/.local/state/opencode
+          ensure_symlink /host-data/opencode/cache /root/.cache/opencode
 
           cd /project
 
