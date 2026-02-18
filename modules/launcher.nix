@@ -1,7 +1,15 @@
-{ hostPkgs, hostSystem, guestSystem }:
+{
+  hostPkgs,
+  hostSystem,
+  guestSystem,
+}:
 hostPkgs.writeShellApplication {
   name = "opencode-microvm";
-  runtimeInputs = with hostPkgs; [ jq nix openssh ];
+  runtimeInputs = with hostPkgs; [
+    jq
+    nix
+    openssh
+  ];
   text = ''
         set -euo pipefail
 
@@ -12,6 +20,46 @@ hostPkgs.writeShellApplication {
         nix_build_args=()
         vm_verbose=0
         forwarded_args=()
+        spinner_pid=""
+        spinner_message=""
+
+        start_spinner() {
+          if [ "$vm_verbose" -eq 1 ] || [ ! -t 2 ]; then
+            return
+          fi
+
+          spinner_message="$1"
+          (
+            local frames=("-" "\\" "|" "/")
+            local i=0
+            while :; do
+              printf "\r%s %s" "$spinner_message" "''${frames[i % 4]}" >&2
+              i=$((i + 1))
+              sleep 0.1
+            done
+          ) &
+          spinner_pid=$!
+        }
+
+        stop_spinner() {
+          if [ -z "$spinner_pid" ]; then
+            return
+          fi
+
+          local status_text="$1"
+          kill "$spinner_pid" >/dev/null 2>&1 || true
+          wait "$spinner_pid" 2>/dev/null || true
+          spinner_pid=""
+          printf "\r%s %s\n" "$spinner_message" "$status_text" >&2
+        }
+
+        cleanup_spinner() {
+          if [ -n "$spinner_pid" ]; then
+            stop_spinner "failed"
+          fi
+        }
+
+        trap cleanup_spinner EXIT
 
         while [ "$#" -gt 0 ]; do
           case "$1" in
@@ -25,8 +73,10 @@ hostPkgs.writeShellApplication {
           shift
         done
 
-        if [[ "${hostSystem}" == *-darwin ]]; then
-          builders=""
+        # shellcheck disable=SC2194
+        case "${hostSystem}" in
+          *-darwin)
+            builders=""
 
           if [ -n "''${OPENCODE_VM_BUILDERS:-}" ]; then
             builders="$OPENCODE_VM_BUILDERS"
@@ -98,8 +148,9 @@ hostPkgs.writeShellApplication {
             exit 1
           fi
 
-          nix_build_args+=(--builders "$builders")
-        fi
+            nix_build_args+=(--builders "$builders")
+            ;;
+        esac
 
         mkdir -p "$runtime_dir"
 
@@ -170,12 +221,25 @@ hostPkgs.writeShellApplication {
         esac
 
         vm_attr=".#packages.${hostSystem}.vm"
+        start_spinner "info: preparing OpenCode VM"
         vm_out="$(nix path-info --accept-flake-config --option warn-dirty false "''${nix_build_args[@]}" "$vm_attr" 2>/dev/null | tail -n 1 || true)"
         if [ -z "$vm_out" ]; then
           vm_out="$(nix build --accept-flake-config --log-format bar --option warn-dirty false "''${nix_build_args[@]}" "$vm_attr" --print-out-paths --no-link | tail -n 1)"
         fi
+        stop_spinner "ready"
         echo "info: starting OpenCode VM" >&2
         cd "$state_dir"
-        exec "$vm_out/bin/microvm-run"
+
+        runner="$vm_out/bin/microvm-run"
+        if [ "$vm_verbose" -eq 0 ]; then
+          patched_runner="$runtime_dir/microvm-run-quiet"
+          runner_contents="$(<"$runner")"
+          printf '%s' "''${runner_contents//earlyprintk=ttyS0 /}" > "$patched_runner"
+          chmod 700 "$patched_runner"
+          runner="$patched_runner"
+        fi
+
+        trap - EXIT
+        exec "$runner"
   '';
 }
