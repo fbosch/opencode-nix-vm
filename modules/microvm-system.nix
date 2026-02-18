@@ -1,10 +1,10 @@
-{
-  nixpkgs,
-  microvm,
-  lib,
-  hostSystem,
-  guestSystem,
-  hostPkgs,
+{ nixpkgs
+, microvm
+, lib
+, hostSystem
+, guestSystem
+, hostPkgs
+,
 }:
 let
   isDarwinHost = lib.hasSuffix "-darwin" hostSystem;
@@ -38,7 +38,7 @@ nixpkgs.lib.nixosSystem {
         ];
         security.apparmor.enable = true;
         security.apparmor.policies.opencode = {
-          state = "enforce";
+          state = "complain";
           path = ./opencode.apparmor;
         };
         nix.enable = true;
