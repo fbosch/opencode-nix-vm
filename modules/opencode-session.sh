@@ -2,69 +2,14 @@ set -euo pipefail
 
 opencode_bin="$1"
 
-mkdir -p /root/.config
-mkdir -p /root/.local/share
-mkdir -p /root/.local/state
-mkdir -p /root/.cache
-mkdir -p /host-data/opencode/config
-mkdir -p /host-data/opencode/state
-mkdir -p /host-data/opencode/cache
+host_config="/host-config/opencode"
+host_agents="/host-config/agents"
+host_data="/host-data/opencode"
+host_runtime="/run/opencode-host"
 
-if [ ! -f /host-data/opencode/config/.seeded ]; then
-  cp -aL /host-config/opencode/. /host-data/opencode/config/ 2>/dev/null || true
-  touch /host-data/opencode/config/.seeded
-fi
-
-if [ -L /host-data/opencode/config/skills ]; then
-  skills_link_target="$(readlink /host-data/opencode/config/skills || true)"
-  case "$skills_link_target" in
-    /host-config/*)
-      rm -f /host-data/opencode/config/skills
-      ;;
-  esac
-fi
-
-if [ -L /host-data/opencode/config/themes ]; then
-  themes_link_target="$(readlink /host-data/opencode/config/themes || true)"
-  case "$themes_link_target" in
-    /host-config/*)
-      rm -f /host-data/opencode/config/themes
-      ;;
-  esac
-fi
-
-if [ -L /host-data/opencode/config/agents ]; then
-  agents_link_target="$(readlink /host-data/opencode/config/agents || true)"
-  case "$agents_link_target" in
-    /host-config/*)
-      rm -f /host-data/opencode/config/agents
-      ;;
-  esac
-fi
-
-if [ ! -e /host-data/opencode/config/opencode.json ] && [ -e /host-config/opencode/opencode.json ]; then
-  cp -aL /host-config/opencode/opencode.json /host-data/opencode/config/opencode.json 2>/dev/null || true
-fi
-
-if [ ! -e /host-data/opencode/config/themes ] && [ -e /host-config/opencode/themes ]; then
-  cp -aL /host-config/opencode/themes /host-data/opencode/config/themes 2>/dev/null || true
-fi
-
-if [ ! -e /host-data/opencode/config/skills ] && [ -e /host-config/opencode/skills ]; then
-  cp -aL /host-config/opencode/skills /host-data/opencode/config/skills 2>/dev/null || true
-fi
-
-if [ ! -e /host-data/opencode/config/skills ] && [ -e /host-config/agents/skills ]; then
-  cp -aL /host-config/agents/skills /host-data/opencode/config/skills 2>/dev/null || true
-fi
-
-if [ ! -e /host-data/opencode/config/agents ] && [ -e /host-config/agents/agents ]; then
-  cp -aL /host-config/agents/agents /host-data/opencode/config/agents 2>/dev/null || true
-fi
-
-if [ ! -f /run/opencode-host/verbose ]; then
-  printf '\033[2J\033[H'
-fi
+config_dir="$host_data/config"
+state_dir="$host_data/state"
+cache_dir="$host_data/cache"
 
 ensure_symlink() {
   local src="$1"
@@ -82,16 +27,61 @@ ensure_symlink() {
   ln -sfn "$src" "$dst"
 }
 
-ensure_symlink /host-data/opencode/config /root/.config/opencode
-ensure_symlink /host-config/agents /root/.agents
-ensure_symlink /host-data/opencode /root/.local/share/opencode
-ensure_symlink /host-data/opencode/state /root/.local/state/opencode
-ensure_symlink /host-data/opencode/cache /root/.cache/opencode
+remove_legacy_hostconfig_link() {
+  local path="$1"
+
+  if [ -L "$path" ]; then
+    local target
+    target="$(readlink "$path" || true)"
+    case "$target" in
+      /host-config/*)
+        rm -f "$path"
+        ;;
+    esac
+  fi
+}
+
+copy_if_missing() {
+  local dst="$1"
+  local src="$2"
+
+  if [ ! -e "$dst" ] && [ -e "$src" ]; then
+    cp -aL "$src" "$dst" 2>/dev/null || true
+  fi
+}
+
+mkdir -p /root/.config /root/.local/share /root/.local/state /root/.cache
+mkdir -p "$config_dir" "$state_dir" "$cache_dir"
+
+if [ ! -f "$config_dir/.seeded" ]; then
+  cp -aL "$host_config/." "$config_dir/" 2>/dev/null || true
+  touch "$config_dir/.seeded"
+fi
+
+for name in skills themes agents; do
+  remove_legacy_hostconfig_link "$config_dir/$name"
+done
+
+copy_if_missing "$config_dir/opencode.json" "$host_config/opencode.json"
+copy_if_missing "$config_dir/themes" "$host_config/themes"
+copy_if_missing "$config_dir/skills" "$host_config/skills"
+copy_if_missing "$config_dir/skills" "$host_agents/skills"
+copy_if_missing "$config_dir/agents" "$host_agents/agents"
+
+if [ ! -f "$host_runtime/verbose" ]; then
+  printf '\033[2J\033[H'
+fi
+
+ensure_symlink "$config_dir" /root/.config/opencode
+ensure_symlink "$host_agents" /root/.agents
+ensure_symlink "$host_data" /root/.local/share/opencode
+ensure_symlink "$state_dir" /root/.local/state/opencode
+ensure_symlink "$cache_dir" /root/.cache/opencode
 
 cd /project
 
-if [ -f /run/opencode-host/args ]; then
-  mapfile -t OPENCODE_ARGS < /run/opencode-host/args
+if [ -f "$host_runtime/args" ]; then
+  mapfile -t OPENCODE_ARGS < "$host_runtime/args"
   "$opencode_bin" "${OPENCODE_ARGS[@]}"
 else
   "$opencode_bin"
