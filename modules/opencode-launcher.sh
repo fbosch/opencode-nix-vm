@@ -1,4 +1,5 @@
 set -euo pipefail
+umask 077
 
 host_system="$1"
 guest_system="$2"
@@ -12,6 +13,29 @@ verbose_file="$runtime_dir/verbose"
 nix_build_args=()
 vm_verbose=0
 forwarded_args=()
+
+ensure_private_dir() {
+  local dir="$1"
+
+  if [ -L "$dir" ]; then
+    echo "error: refusing symlinked path: $dir" >&2
+    exit 1
+  fi
+
+  if [ -e "$dir" ] && [ ! -d "$dir" ]; then
+    echo "error: expected directory path: $dir" >&2
+    exit 1
+  fi
+
+  mkdir -p "$dir"
+
+  if [ ! -O "$dir" ]; then
+    echo "error: directory is not owned by current user: $dir" >&2
+    exit 1
+  fi
+
+  chmod 700 "$dir"
+}
 
 parse_args() {
   while [ "$#" -gt 0 ]; do
@@ -39,8 +63,6 @@ configure_darwin_builder() {
   nix_build_args+=(--builders "$builders")
 }
 
-mkdir -p "$runtime_dir"
-
 replace_with_link() {
   local src="$1"
   local dst="$2"
@@ -64,7 +86,8 @@ replace_with_dir() {
 }
 
 prepare_host_state() {
-  mkdir -p "$runtime_dir"
+  ensure_private_dir "$state_dir"
+  ensure_private_dir "$runtime_dir"
 
   replace_with_link "$PWD" "$state_dir/workdir"
 

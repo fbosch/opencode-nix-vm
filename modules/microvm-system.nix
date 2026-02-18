@@ -50,6 +50,16 @@ nixpkgs.lib.nixosSystem {
             TTYReset = true;
             TTYVHangup = true;
             TTYVTDisallocate = true;
+            UMask = "0077";
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectKernelTunables = true;
+            ProtectKernelModules = true;
+            ProtectControlGroups = true;
+            RestrictSUIDSGID = true;
+            RestrictRealtime = true;
+            LockPersonality = true;
+            SystemCallArchitectures = "native";
             ExecStart = "${pkgs.writeShellScript "opencode-session" ''
               exec ${pkgs.bash}/bin/bash ${./opencode-session.sh} ${pkgs.opencode}/bin/opencode
             ''}";
