@@ -1,0 +1,4 @@
+*.sock
+*.img
+keys/
+nixos.qcow2
