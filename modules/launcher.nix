@@ -1,7 +1,7 @@
 { hostPkgs, hostSystem, guestSystem }:
 hostPkgs.writeShellApplication {
   name = "opencode-microvm";
-  runtimeInputs = with hostPkgs; [ jq nix openssh python3 ];
+  runtimeInputs = with hostPkgs; [ jq nix openssh ];
   text = ''
         set -euo pipefail
 
@@ -110,32 +110,28 @@ hostPkgs.writeShellApplication {
       ln -s "$src" "$dst"
     }
 
-    resolve_path() {
-      python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"
-    }
-
         replace_with_dir() {
           local dst="$1"
           rm -rf "$dst"
           mkdir -p "$dst"
         }
 
-    replace_with_link "$(resolve_path "$PWD")" "$state_dir/workdir"
+    replace_with_link "$PWD" "$state_dir/workdir"
 
     if [ -d "$HOME/.config/opencode" ]; then
-      replace_with_link "$(resolve_path "$HOME/.config/opencode")" "$state_dir/config-opencode"
+      replace_with_link "$HOME/.config/opencode" "$state_dir/config-opencode"
     else
       replace_with_dir "$state_dir/config-opencode"
     fi
 
     if [ -d "$HOME/.agents" ]; then
-      replace_with_link "$(resolve_path "$HOME/.agents")" "$state_dir/agents"
+      replace_with_link "$HOME/.agents" "$state_dir/agents"
     else
       replace_with_dir "$state_dir/agents"
     fi
 
     mkdir -p "$HOME/.local/share/opencode"
-    replace_with_link "$(resolve_path "$HOME/.local/share/opencode")" "$state_dir/data-opencode"
+    replace_with_link "$HOME/.local/share/opencode" "$state_dir/data-opencode"
 
         : > "$port_file"
         : > "$runtime_dir/args"
