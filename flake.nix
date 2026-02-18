@@ -14,7 +14,12 @@
     };
   };
 
-  outputs = { self, nixpkgs, microvm }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      microvm,
+    }:
     let
       lib = nixpkgs.lib;
       hostSystems = [
@@ -27,12 +32,20 @@
       forAllHostSystems = f: lib.genAttrs hostSystems (hostSystem: f hostSystem);
       guestSystemFor = hostSystem: lib.replaceString "-darwin" "-linux" hostSystem;
 
-      mkPackageSet = hostSystem:
+      mkPackageSet =
+        hostSystem:
         let
           hostPkgs = nixpkgs.legacyPackages.${hostSystem};
           guestSystem = guestSystemFor hostSystem;
           vm = import ./modules/microvm-system.nix {
-            inherit nixpkgs microvm lib hostSystem guestSystem hostPkgs;
+            inherit
+              nixpkgs
+              microvm
+              lib
+              hostSystem
+              guestSystem
+              hostPkgs
+              ;
           };
           runner = vm.config.microvm.declaredRunner;
 
@@ -49,7 +62,8 @@
     {
       packages = forAllHostSystems mkPackageSet;
 
-      apps = forAllHostSystems (hostSystem:
+      apps = forAllHostSystems (
+        hostSystem:
         let
           pkg = self.packages.${hostSystem}.launch;
         in
@@ -62,6 +76,7 @@
             type = "app";
             program = "${pkg}/bin/opencode-microvm";
           };
-        });
+        }
+      );
     };
 }
