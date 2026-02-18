@@ -31,19 +31,10 @@
         let
           hostPkgs = nixpkgs.legacyPackages.${hostSystem};
           guestSystem = guestSystemFor hostSystem;
-
-          mkRunner = resources:
-            let
-              vm = import ./modules/microvm-system.nix {
-                inherit nixpkgs microvm lib hostSystem guestSystem hostPkgs;
-                inherit (resources) vcpu mem;
-              };
-            in
-            vm.config.microvm.declaredRunner;
-
-          vmSmall = mkRunner { vcpu = 2; mem = 2048; };
-          vmMedium = mkRunner { vcpu = 4; mem = 4096; };
-          vmLarge = mkRunner { vcpu = 8; mem = 8192; };
+          vm = import ./modules/microvm-system.nix {
+            inherit nixpkgs microvm lib hostSystem guestSystem hostPkgs;
+          };
+          runner = vm.config.microvm.declaredRunner;
 
           launcher = import ./modules/launcher.nix {
             inherit hostPkgs hostSystem guestSystem;
@@ -51,10 +42,7 @@
         in
         {
           default = launcher;
-          vm = vmMedium;
-          vm-small = vmSmall;
-          vm-medium = vmMedium;
-          vm-large = vmLarge;
+          vm = runner;
           launch = launcher;
         };
     in

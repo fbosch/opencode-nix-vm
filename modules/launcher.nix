@@ -1,26 +1,16 @@
 { hostPkgs, hostSystem, guestSystem }:
 hostPkgs.writeShellApplication {
   name = "opencode-microvm";
-  runtimeInputs = with hostPkgs; [ jq nix openssh ];
+  runtimeInputs = with hostPkgs; [ jq nix openssh python3 ];
   text = ''
         set -euo pipefail
 
-        hash_string() {
-          if command -v sha256sum >/dev/null 2>&1; then
-            printf '%s' "$1" | sha256sum | awk '{print $1}'
-          else
-            printf '%s' "$1" | shasum -a 256 | awk '{print $1}'
-          fi
-        }
-
-        project_id="$(hash_string "$PWD" | cut -c1-16)"
-        state_dir="/tmp/opencode-microvm/$project_id"
+        state_dir="/tmp/opencode-microvm"
         runtime_dir="$state_dir/runtime"
         port_file="$runtime_dir/port"
         verbose_file="$runtime_dir/verbose"
         nix_build_args=()
         vm_verbose=0
-        vm_size=""
         forwarded_args=()
 
         while [ "$#" -gt 0 ]; do
@@ -28,68 +18,12 @@ hostPkgs.writeShellApplication {
             --verbose)
               vm_verbose=1
               ;;
-            --vm-size)
-              shift
-              if [ "$#" -eq 0 ]; then
-                echo "error: --vm-size requires a value (small|medium|large)" >&2
-                exit 1
-              fi
-              vm_size="$1"
-              ;;
-            --vm-size=*)
-              vm_size="''${1#--vm-size=}"
-              ;;
             *)
               forwarded_args+=("$1")
               ;;
           esac
           shift
         done
-
-        detect_host_mem_gib() {
-          if [[ "${hostSystem}" == *-darwin ]]; then
-            local bytes
-            bytes="$(sysctl -n hw.memsize 2>/dev/null || echo 0)"
-            echo $(( bytes / 1024 / 1024 / 1024 ))
-          else
-            local kib
-            kib="$(awk '/MemTotal:/ { print $2 }' /proc/meminfo 2>/dev/null || echo 0)"
-            echo $(( kib / 1024 / 1024 ))
-          fi
-        }
-
-        detect_host_cpus() {
-          if [[ "${hostSystem}" == *-darwin ]]; then
-            sysctl -n hw.ncpu 2>/dev/null || echo 1
-          else
-            nproc 2>/dev/null || echo 1
-          fi
-        }
-
-        if [ -z "$vm_size" ]; then
-          vm_size="''${OPENCODE_VM_SIZE:-}"
-        fi
-
-        if [ -z "$vm_size" ]; then
-          host_mem_gib="$(detect_host_mem_gib)"
-          host_cpus="$(detect_host_cpus)"
-          if [ "$host_mem_gib" -lt 8 ] || [ "$host_cpus" -le 4 ]; then
-            vm_size="small"
-          elif [ "$host_mem_gib" -lt 16 ] || [ "$host_cpus" -le 8 ]; then
-            vm_size="medium"
-          else
-            vm_size="large"
-          fi
-        fi
-
-        case "$vm_size" in
-          small|medium|large)
-            ;;
-          *)
-            echo "error: invalid VM size '$vm_size' (expected: small, medium, large)" >&2
-            exit 1
-            ;;
-        esac
 
         if [[ "${hostSystem}" == *-darwin ]]; then
           builders=""
@@ -169,12 +103,16 @@ hostPkgs.writeShellApplication {
 
         mkdir -p "$runtime_dir"
 
-        replace_with_link() {
-          local src="$1"
-          local dst="$2"
-          rm -rf "$dst"
-          ln -s "$src" "$dst"
-        }
+    replace_with_link() {
+      local src="$1"
+      local dst="$2"
+      rm -rf "$dst"
+      ln -s "$src" "$dst"
+    }
+
+    resolve_path() {
+      python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"
+    }
 
         replace_with_dir() {
           local dst="$1"
@@ -182,22 +120,22 @@ hostPkgs.writeShellApplication {
           mkdir -p "$dst"
         }
 
-        replace_with_link "$PWD" "$state_dir/workdir"
+    replace_with_link "$(resolve_path "$PWD")" "$state_dir/workdir"
 
-        if [ -d "$HOME/.config/opencode" ]; then
-          replace_with_link "$HOME/.config/opencode" "$state_dir/config-opencode"
-        else
-          replace_with_dir "$state_dir/config-opencode"
-        fi
+    if [ -d "$HOME/.config/opencode" ]; then
+      replace_with_link "$(resolve_path "$HOME/.config/opencode")" "$state_dir/config-opencode"
+    else
+      replace_with_dir "$state_dir/config-opencode"
+    fi
 
-        if [ -d "$HOME/.agents" ]; then
-          replace_with_link "$HOME/.agents" "$state_dir/agents"
-        else
-          replace_with_dir "$state_dir/agents"
-        fi
+    if [ -d "$HOME/.agents" ]; then
+      replace_with_link "$(resolve_path "$HOME/.agents")" "$state_dir/agents"
+    else
+      replace_with_dir "$state_dir/agents"
+    fi
 
-        mkdir -p "$HOME/.local/share/opencode"
-        replace_with_link "$HOME/.local/share/opencode" "$state_dir/data-opencode"
+    mkdir -p "$HOME/.local/share/opencode"
+    replace_with_link "$(resolve_path "$HOME/.local/share/opencode")" "$state_dir/data-opencode"
 
         : > "$port_file"
         : > "$runtime_dir/args"
@@ -235,12 +173,12 @@ hostPkgs.writeShellApplication {
             ;;
         esac
 
-        vm_attr=".#packages.${hostSystem}.vm-''${vm_size}"
+        vm_attr=".#packages.${hostSystem}.vm"
         vm_out="$(nix path-info --accept-flake-config --option warn-dirty false "''${nix_build_args[@]}" "$vm_attr" 2>/dev/null | tail -n 1 || true)"
         if [ -z "$vm_out" ]; then
           vm_out="$(nix build --accept-flake-config --log-format bar --option warn-dirty false "''${nix_build_args[@]}" "$vm_attr" --print-out-paths --no-link | tail -n 1)"
         fi
-        echo "info: starting OpenCode VM (size=$vm_size)" >&2
+        echo "info: starting OpenCode VM" >&2
         cd "$state_dir"
         exec "$vm_out/bin/microvm-run"
   '';
