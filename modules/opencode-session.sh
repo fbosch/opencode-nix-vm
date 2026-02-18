@@ -2,6 +2,8 @@ set -euo pipefail
 
 opencode_bin="$1"
 
+export PATH="/run/wrappers/bin:/run/current-system/sw/bin:/usr/bin:/bin"
+
 host_config="/host-config/opencode"
 host_agents="/host-config/agents"
 host_data="/host-data/opencode"

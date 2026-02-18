@@ -13,6 +13,38 @@ verbose_file="$runtime_dir/verbose"
 nix_build_args=()
 vm_verbose=0
 forwarded_args=()
+vm_cores=""
+vm_memory_mb=""
+
+normalize_memory_to_mb() {
+  local raw="$1"
+  local lower
+  lower="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')"
+
+  case "$lower" in
+    *gib)
+      printf '%s\n' $(( ${lower%gib} * 1024 ))
+      ;;
+    *gb)
+      printf '%s\n' $(( ${lower%gb} * 1024 ))
+      ;;
+    *g)
+      printf '%s\n' $(( ${lower%g} * 1024 ))
+      ;;
+    *mib)
+      printf '%s\n' "${lower%mib}"
+      ;;
+    *mb)
+      printf '%s\n' "${lower%mb}"
+      ;;
+    *m)
+      printf '%s\n' "${lower%m}"
+      ;;
+    *)
+      printf '%s\n' "$lower"
+      ;;
+  esac
+}
 
 ensure_private_dir() {
   local dir="$1"
@@ -38,10 +70,39 @@ ensure_private_dir() {
 }
 
 parse_args() {
+  local pending_cores=0
+  local pending_memory=0
+
   while [ "$#" -gt 0 ]; do
+    if [ "$pending_cores" -eq 1 ]; then
+      vm_cores="$1"
+      pending_cores=0
+      shift
+      continue
+    fi
+
+    if [ "$pending_memory" -eq 1 ]; then
+      vm_memory_mb="$(normalize_memory_to_mb "$1")"
+      pending_memory=0
+      shift
+      continue
+    fi
+
     case "$1" in
       --verbose)
         vm_verbose=1
+        ;;
+      --cores)
+        pending_cores=1
+        ;;
+      --cores=*)
+        vm_cores="${1#--cores=}"
+        ;;
+      --memory)
+        pending_memory=1
+        ;;
+      --memory=*)
+        vm_memory_mb="$(normalize_memory_to_mb "${1#--memory=}")"
         ;;
       *)
         forwarded_args+=("$1")
@@ -49,6 +110,36 @@ parse_args() {
     esac
     shift
   done
+
+  if [ "$pending_cores" -eq 1 ] || [ "$pending_memory" -eq 1 ]; then
+    echo "error: missing value for --cores or --memory" >&2
+    exit 1
+  fi
+
+  case "$vm_cores" in
+    ""|*[!0-9]*) ;;
+    *)
+      if [ "$vm_cores" -lt 1 ]; then
+        echo "error: --cores must be >= 1" >&2
+        exit 1
+      fi
+      ;;
+  esac
+
+  if [ -n "$vm_cores" ] && [[ "$vm_cores" =~ [^0-9] ]]; then
+    echo "error: invalid --cores value: $vm_cores" >&2
+    exit 1
+  fi
+
+  if [ -n "$vm_memory_mb" ] && [[ "$vm_memory_mb" =~ [^0-9] ]]; then
+    echo "error: invalid --memory value" >&2
+    exit 1
+  fi
+
+  if [ -n "$vm_memory_mb" ] && [ "$vm_memory_mb" -lt 256 ]; then
+    echo "error: --memory must be at least 256MB" >&2
+    exit 1
+  fi
 }
 
 configure_darwin_builder() {
@@ -162,17 +253,38 @@ resolve_vm_output() {
 prepare_runner() {
   local vm_out="$1"
   local runner="$vm_out/bin/microvm-run"
+  local runner_contents
+  local patch_required=0
+
+  if [ -n "$vm_cores" ] || [ -n "$vm_memory_mb" ]; then
+    case "$host_system" in
+      *-darwin)
+        echo "warning: --cores/--memory are currently supported for Linux qemu runs only" >&2
+        ;;
+    esac
+  fi
+
+  runner_contents="$(<"$runner")"
 
   if [ "$vm_verbose" -eq 0 ]; then
-    local patched_runner="$runtime_dir/microvm-run-quiet"
+    runner_contents="${runner_contents//earlyprintk=ttyS0 /}"
+    patch_required=1
+  fi
 
-    if [ ! -f "$patched_runner" ] || [ "$runner" -nt "$patched_runner" ]; then
-      local runner_contents
-      runner_contents="$(<"$runner")"
-      printf '%s' "${runner_contents//earlyprintk=ttyS0 /}" > "$patched_runner"
-      chmod 700 "$patched_runner"
-    fi
+  if [ -n "$vm_cores" ]; then
+    runner_contents="$(printf '%s' "$runner_contents" | sed -E "s/-smp [0-9]+/-smp ${vm_cores}/")"
+    patch_required=1
+  fi
 
+  if [ -n "$vm_memory_mb" ]; then
+    runner_contents="$(printf '%s' "$runner_contents" | sed -E "s/-m [0-9]+/-m ${vm_memory_mb}/; s/size=[0-9]+M/size=${vm_memory_mb}M/")"
+    patch_required=1
+  fi
+
+  if [ "$patch_required" -eq 1 ]; then
+    local patched_runner="$runtime_dir/microvm-run-patched"
+    printf '%s' "$runner_contents" > "$patched_runner"
+    chmod 700 "$patched_runner"
     runner="$patched_runner"
   fi
 

@@ -41,7 +41,7 @@ nixpkgs.lib.nixosSystem {
           "nix-command"
           "flakes"
         ];
-
+        environment.sessionVariables.PATH = lib.mkForce "/run/wrappers/bin:/run/current-system/sw/bin:/usr/bin:/bin";
         environment.systemPackages = with pkgs; [
           opencode
           bashInteractive
@@ -65,6 +65,7 @@ nixpkgs.lib.nixosSystem {
           after = [ "local-fs.target" ];
           serviceConfig = {
             Type = "simple";
+            Environment = [ "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/usr/bin:/bin" ];
             StandardInput = "tty";
             StandardOutput = "tty";
             StandardError = "tty";
