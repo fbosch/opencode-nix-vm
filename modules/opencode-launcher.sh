@@ -11,46 +11,6 @@ verbose_file="$runtime_dir/verbose"
 nix_build_args=()
 vm_verbose=0
 forwarded_args=()
-spinner_pid=""
-spinner_message=""
-
-start_spinner() {
-  if [ "$vm_verbose" -eq 1 ] || [ ! -t 2 ]; then
-    return
-  fi
-
-  spinner_message="$1"
-  (
-    local frames=("-" "\\" "|" "/")
-    local i=0
-    while :; do
-      printf "\r%s %s" "$spinner_message" "${frames[i % 4]}" >&2
-      i=$((i + 1))
-      sleep 0.1
-    done
-  ) &
-  spinner_pid=$!
-}
-
-stop_spinner() {
-  if [ -z "$spinner_pid" ]; then
-    return
-  fi
-
-  local status_text="$1"
-  kill "$spinner_pid" >/dev/null 2>&1 || true
-  wait "$spinner_pid" 2>/dev/null || true
-  spinner_pid=""
-  printf "\r%s %s\n" "$spinner_message" "$status_text" >&2
-}
-
-cleanup_spinner() {
-  if [ -n "$spinner_pid" ]; then
-    stop_spinner "failed"
-  fi
-}
-
-trap cleanup_spinner EXIT
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -212,12 +172,11 @@ case "$selected_port" in
 esac
 
 vm_attr=".#packages.${host_system}.vm"
-start_spinner "info: preparing OpenCode VM"
+echo "info: preparing OpenCode VM" >&2
 vm_out="$(nix path-info --accept-flake-config --option warn-dirty false "${nix_build_args[@]}" "$vm_attr" 2>/dev/null | tail -n 1 || true)"
 if [ -z "$vm_out" ]; then
   vm_out="$(nix build --accept-flake-config --log-format bar --option warn-dirty false "${nix_build_args[@]}" "$vm_attr" --print-out-paths --no-link | tail -n 1)"
 fi
-stop_spinner "ready"
 echo "info: starting OpenCode VM" >&2
 cd "$state_dir"
 
@@ -229,6 +188,4 @@ if [ "$vm_verbose" -eq 0 ]; then
   chmod 700 "$patched_runner"
   runner="$patched_runner"
 fi
-
-trap - EXIT
 exec "$runner"
