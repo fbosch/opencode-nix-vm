@@ -1,7 +1,5 @@
 include <tunables/global>
 
-include <tunables/global>
-
 profile opencode flags=(attach_disconnected,mediate_deleted) {
   include <abstractions/base>
   include <abstractions/nameservice>
@@ -9,28 +7,45 @@ profile opencode flags=(attach_disconnected,mediate_deleted) {
   network,
   capability,
 
+  / r,
+  /nix/store/ r,
   /nix/store/** mrix,
   /run/current-system/sw/** mrix,
   /run/current-system/sw/bin/** mrix,
 
-  /root/** rwk,
-  /tmp/** rwk,
+  /root/ r,
+  /root/** rwkl,
+  /tmp/ r,
+  /tmp/** rwkm,
+  /run/ r,
   /run/** rwk,
-  /dev/{null,tty,ptmx,random,urandom} rw,
+  /dev/{null,tty,ptmx,random,urandom,hvc0} rw,
 
+  /project/ r,
   /project/** rwk,
   
   # Restrict /host-data/opencode writes to specific subdirectories
-  /host-data/opencode/ r,
+  /host-data/ r,
+  /host-data/opencode/ rl,
   /host-data/opencode/auth.json r,
-  /host-data/opencode/bin/** rwk,
-  /host-data/opencode/cache/** rwk,
-  /host-data/opencode/config/** rwk,
-  /host-data/opencode/log/** rwk,
-  /host-data/opencode/snapshot/** rwk,
-  /host-data/opencode/state/** rwk,
-  /host-data/opencode/storage/** rwk,
-  /host-data/opencode/tool-output/** rwk,
+  /host-data/opencode/bin/ rwkl,
+  /host-data/opencode/bin/** rwkl,
+  /host-data/opencode/cache/ rwkl,
+  /host-data/opencode/cache/** rwkl,
+  /host-data/opencode/config/ rwkl,
+  /host-data/opencode/config/** rwkl,
+  /host-data/opencode/log/ rwkl,
+  /host-data/opencode/log/** rwkl,
+  /host-data/opencode/snapshot/ rwkl,
+  /host-data/opencode/snapshot/** rwkl,
+  /host-data/opencode/state/ rwkl,
+  /host-data/opencode/state/** rwkl,
+  /host-data/opencode/storage/ rwkl,
+  /host-data/opencode/storage/** rwkl,
+  /host-data/opencode/tool-output/ rwkl,
+  /host-data/opencode/tool-output/** rwkl,
+  /host-data/opencode/exports/ rwkl,
+  /host-data/opencode/exports/** rwkl,
   # Deny writing executable scripts to root of host-data
   deny /host-data/opencode/*.sh wl,
   deny /host-data/opencode/*.py wl,

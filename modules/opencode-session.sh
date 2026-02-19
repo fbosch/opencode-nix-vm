@@ -64,7 +64,7 @@ sync_from_host_if_present() {
 
 mkdir -p "$user_home/.config" "$user_home/.local/share" "$user_home/.local/state" "$user_home/.cache"
 mkdir -p "$config_dir" "$state_dir" "$cache_dir"
-mkdir -p "$host_data/log"
+mkdir -p "$host_data/log" "$host_data/bin" "$host_data/snapshot" "$host_data/storage" "$host_data/tool-output"
 
 if [ ! -f "$config_dir/.seeded" ]; then
   cp -aL "$host_config/." "$config_dir/" 2>/dev/null || true

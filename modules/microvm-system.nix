@@ -22,6 +22,13 @@ nixpkgs.lib.nixosSystem {
 
         networking.hostName = "opencode-vm";
         networking.firewall.enable = false;
+
+        # Temporary: SSH for debugging
+        services.openssh.enable = true;
+        services.openssh.settings.PermitRootLogin = "yes";
+        users.users.root.openssh.authorizedKeys.keys = [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos"
+        ];
         boot.tmp.useTmpfs = true;
         boot.tmp.cleanOnBoot = true;
         services.journald.storage = "volatile";
@@ -40,7 +47,7 @@ nixpkgs.lib.nixosSystem {
         ];
         security.apparmor.enable = true;
         security.apparmor.policies.opencode = {
-          state = "complain";
+          state = "enforce";
           path = ./opencode.apparmor;
         };
         nix.enable = true;
