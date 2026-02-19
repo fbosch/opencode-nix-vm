@@ -190,6 +190,8 @@ prepare_host_state() {
 
   if [ -d "$HOME/.agents" ]; then
     replace_with_link "$HOME/.agents" "$state_dir/agents"
+  elif [ -d "$HOME/.config/opencode/agents" ]; then
+    replace_with_link "$HOME/.config/opencode/agents" "$state_dir/agents"
   else
     replace_with_dir "$state_dir/agents"
   fi
