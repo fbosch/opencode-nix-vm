@@ -8,6 +8,8 @@
 }:
 let
   isDarwinHost = lib.hasSuffix "-darwin" hostSystem;
+  # vfkit (Darwin) uses virtio-serial → hvc0; qemu (Linux) uses serial → ttyS0
+  ttyDevice = if isDarwinHost then "hvc0" else "ttyS0";
 in
 nixpkgs.lib.nixosSystem {
   system = guestSystem;
@@ -62,7 +64,7 @@ nixpkgs.lib.nixosSystem {
           nodejs_25
         ];
 
-        systemd.services."serial-getty@ttyS0".enable = false;
+        systemd.services."serial-getty@${ttyDevice}".enable = false;
 
         systemd.services.opencode = {
           description = "OpenCode session";
@@ -74,7 +76,7 @@ nixpkgs.lib.nixosSystem {
             StandardInput = "tty";
             StandardOutput = "tty";
             StandardError = "tty";
-            TTYPath = "/dev/ttyS0";
+            TTYPath = "/dev/${ttyDevice}";
             TTYReset = true;
             TTYVHangup = true;
             TTYVTDisallocate = true;

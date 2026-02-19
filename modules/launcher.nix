@@ -3,6 +3,10 @@
   hostSystem,
   guestSystem,
 }:
+let
+  darwinBuilderScript = hostPkgs.writeScript "opencode-darwin-builder.sh" (builtins.readFile ./opencode-darwin-builder.sh);
+  launcherScript = hostPkgs.writeScript "opencode-launcher.sh" (builtins.readFile ./opencode-launcher.sh);
+in
 hostPkgs.writeShellApplication {
   name = "opencode-microvm";
   runtimeInputs = with hostPkgs; [
@@ -11,6 +15,6 @@ hostPkgs.writeShellApplication {
     openssh
   ];
   text = ''
-    exec ${hostPkgs.bash}/bin/bash ${./opencode-launcher.sh} ${hostSystem} ${guestSystem} ${./opencode-darwin-builder.sh} "$@"
+    exec ${hostPkgs.bash}/bin/bash ${launcherScript} ${hostSystem} ${guestSystem} ${darwinBuilderScript} "$@"
   '';
 }
